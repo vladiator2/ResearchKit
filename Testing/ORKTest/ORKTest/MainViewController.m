@@ -212,28 +212,12 @@ static const CGFloat HeaderSideLayoutMargin = 16.0;
 
 @implementation VerificationViewController
 
-- (void)showAlertWithTitle:(NSString *)title {
-    UIAlertController *alert = [UIAlertController alertControllerWithTitle:title
+- (void)resendEmailButtonTapped {
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Resend Verification Email"
                                                                    message:@"Button tapped"
                                                             preferredStyle:UIAlertControllerStyleAlert];
     [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
     [self presentViewController:alert animated:YES completion:nil];
-}
-
-- (void)continueButtonTapped {
-    [self goForward];
-}
-
-- (void)resendEmailButtonTapped {
-    [self showAlertWithTitle:@"Resend Verification Email"];
-}
-
-- (void)changeEmailButtonTapped {
-    [self showAlertWithTitle:@"Wrong email address?"];
-}
-
-- (NSString *)emailAddress {
-    return @"jappleseed@example.com";
 }
 
 @end
@@ -374,6 +358,10 @@ static const CGFloat HeaderSideLayoutMargin = 16.0;
                            @"Wait Task",
                            ],
                        ];
+}
+
+- (void)viewWillTransitionToSize:(CGSize)size withTransitionCoordinator:(id<UIViewControllerTransitionCoordinator>)coordinator {
+    [_collectionView reloadData];
 }
 
 - (CGSize)collectionView:(UICollectionView *)collectionView layout:(UICollectionViewLayout *)collectionViewLayout referenceSizeForHeaderInSection:(NSInteger)section {
@@ -554,7 +542,7 @@ static const CGFloat HeaderSideLayoutMargin = 16.0;
                                                             timeLimit:300.0
                                                               options:ORKPredefinedTaskOptionNone];
     } else if ([identifier isEqualToString:NavigableOrderedTaskIdentifier]) {
-        return [self makeNavigableOrderedTask];
+        return [TaskFactory makeNavigableOrderedTask:NavigableOrderedTaskIdentifier];
     } else if ([identifier isEqualToString:NavigableLoopTaskIdentifier]) {
         return [self makeNavigableLoopTask];
     } else if ([identifier isEqualToString:CustomNavigationItemTaskIdentifier]) {
@@ -1257,7 +1245,7 @@ static const CGFloat HeaderSideLayoutMargin = 16.0;
 
 #pragma mark - Eligibility form task
 /*
- The eligibility form task is used to test elibility form items (`ORKFormStep`, `ORKFormItem`).
+ The eligibility form task is used to demonstrate an eligibility form (`ORKFormStep`, `ORKFormItem`).
  */
 - (id<ORKTask>)makeEligibilityFormTask {
     NSMutableArray *steps = [NSMutableArray new];
@@ -1271,13 +1259,17 @@ static const CGFloat HeaderSideLayoutMargin = 16.0;
     {
         ORKFormStep *step = [[ORKFormStep alloc] initWithIdentifier:@"form_step"];
         step.optional = NO;
+        step.title = @"Eligibility Form";
+        step.text = @"Please answer the questions below.";
+        
         NSMutableArray *items = [NSMutableArray new];
         [steps addObject:step];
         
         {
+            
             ORKFormItem *item = [[ORKFormItem alloc] initWithIdentifier:@"form_item_1"
                                                                    text:@"Are you over 18 years of age?"
-                                                           answerFormat:[ORKAnswerFormat eligibilityAnswerFormat]];
+                                                           answerFormat:[ORKAnswerFormat booleanAnswerFormat]];
             item.optional = NO;
             [items addObject:item];
         }
@@ -1285,7 +1277,7 @@ static const CGFloat HeaderSideLayoutMargin = 16.0;
         {
             ORKFormItem *item = [[ORKFormItem alloc] initWithIdentifier:@"form_item_2"
                                                                    text:@"Have you been diagnosed with pre-diabetes or type 2 diabetes?"
-                                                           answerFormat:[ORKAnswerFormat eligibilityAnswerFormat]];
+                                                           answerFormat:[ORKAnswerFormat booleanAnswerFormat]];
             item.optional = NO;
             [items addObject:item];
         }
@@ -1293,15 +1285,21 @@ static const CGFloat HeaderSideLayoutMargin = 16.0;
         {
             ORKFormItem *item = [[ORKFormItem alloc] initWithIdentifier:@"form_item_3"
                                                                    text:@"Can you not read and understand English in order to provide informed consent and follow the instructions?"
-                                                           answerFormat:[ORKAnswerFormat eligibilityAnswerFormat]];
+                                                           answerFormat:[ORKAnswerFormat booleanAnswerFormat]];
             item.optional = NO;
             [items addObject:item];
         }
         
         {
+            NSArray *textChoices = @[[ORKTextChoice choiceWithText:@"Yes" value:@1],
+                                     [ORKTextChoice choiceWithText:@"No" value:@0],
+                                     [ORKTextChoice choiceWithText:@"N/A" value:@2]];
+            ORKTextChoiceAnswerFormat *answerFormat = (ORKTextChoiceAnswerFormat *)[ORKAnswerFormat choiceAnswerFormatWithStyle:ORKChoiceAnswerStyleSingleChoice
+                                                                                                                    textChoices:textChoices];
+            
             ORKFormItem *item = [[ORKFormItem alloc] initWithIdentifier:@"form_item_4"
-                                                                   text:@"Do you live outside the United States of America?"
-                                                           answerFormat:[ORKAnswerFormat eligibilityAnswerFormat]];
+                                                                   text:@"Are you pregnant?"
+                                                           answerFormat:answerFormat];
             item.optional = NO;
             [items addObject:item];
         }
@@ -1327,27 +1325,24 @@ static const CGFloat HeaderSideLayoutMargin = 16.0;
     ORKPredicateStepNavigationRule *predicateRule = nil;
     ORKResultSelector *resultSelector = nil;
     
-    resultSelector = [ORKResultSelector selectorWithStepIdentifier:@"form_step"
-                                                  resultIdentifier:@"form_item_1"];
-    NSPredicate *predicateFormItem1 = [ORKResultPredicate
-                                       predicateForBooleanQuestionResultWithResultSelector:resultSelector expectedAnswer:YES];
-    resultSelector = [ORKResultSelector selectorWithStepIdentifier:@"form_step"
-                                                  resultIdentifier:@"form_item_2"];
-    NSPredicate *predicateFormItem2 = [ORKResultPredicate
-                                       predicateForBooleanQuestionResultWithResultSelector:resultSelector expectedAnswer:YES];
-    resultSelector = [ORKResultSelector selectorWithStepIdentifier:@"form_step"
-                                                  resultIdentifier:@"form_item_3"];
-    NSPredicate *predicateFormItem3 = [ORKResultPredicate
-                                       predicateForBooleanQuestionResultWithResultSelector:resultSelector expectedAnswer:NO];
-    resultSelector = [ORKResultSelector selectorWithStepIdentifier:@"form_step"
-                                                  resultIdentifier:@"form_item_4"];
-    NSPredicate *predicateFormItem4 = [ORKResultPredicate
-                                       predicateForBooleanQuestionResultWithResultSelector:resultSelector expectedAnswer:NO];
+    resultSelector = [ORKResultSelector selectorWithStepIdentifier:@"form_step" resultIdentifier:@"form_item_1"];
+    NSPredicate *predicateFormItem1 = [ORKResultPredicate predicateForBooleanQuestionResultWithResultSelector:resultSelector expectedAnswer:YES];
+
+    resultSelector = [ORKResultSelector selectorWithStepIdentifier:@"form_step" resultIdentifier:@"form_item_2"];
+    NSPredicate *predicateFormItem2 = [ORKResultPredicate predicateForBooleanQuestionResultWithResultSelector:resultSelector expectedAnswer:YES];
     
-    NSPredicate *predicateEligible = [NSCompoundPredicate
-                                      andPredicateWithSubpredicates:@[predicateFormItem1,predicateFormItem2, predicateFormItem3, predicateFormItem4]];
-    predicateRule = [[ORKPredicateStepNavigationRule alloc] initWithResultPredicates:@[predicateEligible]
-                                                          destinationStepIdentifiers:@[@"eligible_step"]];
+    resultSelector = [ORKResultSelector selectorWithStepIdentifier:@"form_step" resultIdentifier:@"form_item_3"];
+    NSPredicate *predicateFormItem3 = [ORKResultPredicate predicateForBooleanQuestionResultWithResultSelector:resultSelector expectedAnswer:NO];
+    
+    resultSelector = [ORKResultSelector selectorWithStepIdentifier:@"form_step" resultIdentifier:@"form_item_4"];
+    NSPredicate *predicateFormItem4a = [ORKResultPredicate predicateForChoiceQuestionResultWithResultSelector:resultSelector expectedAnswerValue:@0];
+    NSPredicate *predicateFormItem4b = [ORKResultPredicate predicateForChoiceQuestionResultWithResultSelector:resultSelector expectedAnswerValue:@2];
+    
+    NSPredicate *predicateEligible1 = [NSCompoundPredicate andPredicateWithSubpredicates:@[predicateFormItem1,predicateFormItem2, predicateFormItem3, predicateFormItem4a]];
+    NSPredicate *predicateEligible2 = [NSCompoundPredicate andPredicateWithSubpredicates:@[predicateFormItem1,predicateFormItem2, predicateFormItem3, predicateFormItem4b]];
+    
+    predicateRule = [[ORKPredicateStepNavigationRule alloc] initWithResultPredicates:@[predicateEligible1, predicateEligible2]
+                                                          destinationStepIdentifiers:@[@"eligible_step", @"eligible_step"]];
     [task setNavigationRule:predicateRule forTriggerStepIdentifier:@"form_step"];
     
     // Add end direct rules to skip unneeded steps
@@ -1364,7 +1359,7 @@ static const CGFloat HeaderSideLayoutMargin = 16.0;
 
 #pragma mark - Eligibility survey
 /*
- The eligibility survey task is used to test elibility survey cell item.
+ The eligibility survey task is used to demonstrate an eligibility survey.
  */
 - (id<ORKTask>)makeEligibilitySurveyTask {
     NSMutableArray *steps = [NSMutableArray new];
@@ -1376,10 +1371,9 @@ static const CGFloat HeaderSideLayoutMargin = 16.0;
     }
     
     {
-        ORKEligibilityAnswerFormat *answerFormat = (ORKEligibilityAnswerFormat *)[ORKAnswerFormat eligibilityAnswerFormat];
         ORKQuestionStep *step = [ORKQuestionStep questionStepWithIdentifier:@"question_01"
                                                                       title:@"Are you over 18 years of age?"
-                                                                     answer:answerFormat];
+                                                                     answer:[ORKAnswerFormat booleanAnswerFormat]];
         step.optional = NO;
         [steps addObject:step];
     }
@@ -1400,12 +1394,10 @@ static const CGFloat HeaderSideLayoutMargin = 16.0;
 
     // Build navigation rules.
     ORKResultSelector *resultSelector = [ORKResultSelector selectorWithResultIdentifier:@"question_01"];
-    NSPredicate *predicateQuestion = [ORKResultPredicate
-                                      predicateForBooleanQuestionResultWithResultSelector:resultSelector
-                                      expectedAnswer:YES];
-    ORKPredicateStepNavigationRule *predicateRule = [[ORKPredicateStepNavigationRule alloc]
-                                                     initWithResultPredicates:@[predicateQuestion]
-                                                     destinationStepIdentifiers:@[@"eligible_step"]];
+    NSPredicate *predicateQuestion = [ORKResultPredicate predicateForBooleanQuestionResultWithResultSelector:resultSelector expectedAnswer:YES];
+
+    ORKPredicateStepNavigationRule *predicateRule = [[ORKPredicateStepNavigationRule alloc] initWithResultPredicates:@[predicateQuestion]
+                                                                                          destinationStepIdentifiers:@[@"eligible_step"]];
     [task setNavigationRule:predicateRule forTriggerStepIdentifier:@"question_01"];
     
     // Add end direct rules to skip unneeded steps
@@ -1480,9 +1472,7 @@ static const CGFloat HeaderSideLayoutMargin = 16.0;
     NSMutableArray *steps = [NSMutableArray new];
     
     {
-        ORKVerificationStep *step = [[ORKVerificationStep alloc] initWithIdentifier:@"verification_step"
-                                                                              title:@"Verfication"
-                                                                               text:@"Please verify your email"
+        ORKVerificationStep *step = [[ORKVerificationStep alloc] initWithIdentifier:@"verification_step" text:@"Check your email and click on the link to verify your email address and start using the app."
                                                     verificationViewControllerClass:[VerificationViewController class]];
         [steps addObject:step];
     }
@@ -2839,170 +2829,6 @@ static const CGFloat HeaderSideLayoutMargin = 16.0;
     [superview addSubview:self.view];
 }
 
-#pragma mark - Navigable Ordered Task
-
-- (id<ORKTask>)makeNavigableOrderedTask {
-    NSMutableArray *steps = [NSMutableArray new];
-    
-    ORKAnswerFormat *answerFormat = nil;
-    ORKStep *step = nil;
-    NSArray *textChoices = nil;
-    
-    // Form step
-    textChoices =
-    @[
-      [ORKTextChoice choiceWithText:@"Good" value:@"good"],
-      [ORKTextChoice choiceWithText:@"Bad" value:@"bad"]
-      ];
-
-    answerFormat = [ORKAnswerFormat choiceAnswerFormatWithStyle:ORKChoiceAnswerStyleSingleChoice
-                                                    textChoices:textChoices];
-    
-    ORKFormItem *formItemFeeling = [[ORKFormItem alloc] initWithIdentifier:@"formFeeling" text:@"How do you feel" answerFormat:answerFormat];
-    ORKFormItem *formItemMood = [[ORKFormItem alloc] initWithIdentifier:@"formMood" text:@"How is your mood" answerFormat:answerFormat];
-    
-    ORKFormStep *formStep = [[ORKFormStep alloc] initWithIdentifier:@"introForm"];
-    formStep.optional = NO;
-    formStep.formItems = @[ formItemFeeling, formItemMood ];
-    [steps addObject:formStep];
-
-    // Question steps
-    textChoices =
-    @[
-      [ORKTextChoice choiceWithText:@"Headache" value:@"headache"],
-      [ORKTextChoice choiceWithText:@"Dizziness" value:@"dizziness"],
-      [ORKTextChoice choiceWithText:@"Nausea" value:@"nausea"]
-      ];
-    
-    answerFormat = [ORKAnswerFormat choiceAnswerFormatWithStyle:ORKChoiceAnswerStyleSingleChoice
-                                                    textChoices:textChoices];
-    step = [ORKQuestionStep questionStepWithIdentifier:@"symptom" title:@"Which is your most severe symptom?" answer:answerFormat];
-    step.optional = NO;
-    [steps addObject:step];
-
-    answerFormat = [ORKAnswerFormat booleanAnswerFormat];
-    step = [ORKQuestionStep questionStepWithIdentifier:@"severity" title:@"Does your symptom interfere with your daily life?" answer:answerFormat];
-    step.optional = NO;
-    [steps addObject:step];
-
-    // Instruction steps
-    step = [[ORKInstructionStep alloc] initWithIdentifier:@"blank"];
-    step.title = @"This step is intentionally left blank (you should not see it)";
-    [steps addObject:step];
-
-    step = [[ORKInstructionStep alloc] initWithIdentifier:@"severe_headache"];
-    step.title = @"You have a severe headache";
-    [steps addObject:step];
-
-    step = [[ORKInstructionStep alloc] initWithIdentifier:@"light_headache"];
-    step.title = @"You have a light headache";
-    [steps addObject:step];
-
-    step = [[ORKInstructionStep alloc] initWithIdentifier:@"other_symptom"];
-    step.title = @"Your symptom is not a headache";
-    [steps addObject:step];
-
-    step = [[ORKInstructionStep alloc] initWithIdentifier:@"survey_skipped"];
-    step.title = @"Please come back to this survey when you don't feel good or your mood is low.";
-    [steps addObject:step];
-
-    step = [[ORKInstructionStep alloc] initWithIdentifier:@"end"];
-    step.title = @"You have finished the task";
-    [steps addObject:step];
-
-    step = [[ORKInstructionStep alloc] initWithIdentifier:@"blankB"];
-    step.title = @"This step is intentionally left blank (you should not see it)";
-    [steps addObject:step];
-
-    ORKNavigableOrderedTask *task = [[ORKNavigableOrderedTask alloc] initWithIdentifier:NavigableOrderedTaskIdentifier
-                                                                                  steps:steps];
-    
-    // Build navigation rules
-    ORKPredicateStepNavigationRule *predicateRule = nil;
-    ORKResultSelector *resultSelector = nil;
-    
-    // From the feel/mood form step, skip the survey if the user is feeling okay and has a good mood
-    resultSelector = [ORKResultSelector selectorWithStepIdentifier:@"introForm"
-                                                                        resultIdentifier:@"formFeeling"];
-    NSPredicate *predicateGoodFeeling = [ORKResultPredicate predicateForChoiceQuestionResultWithResultSelector:resultSelector
-                                                                                           expectedAnswerValue:@"good"];
-    
-    resultSelector = [ORKResultSelector selectorWithStepIdentifier:@"introForm"
-                                                                        resultIdentifier:@"formMood"];
-    NSPredicate *predicateGoodMood = [ORKResultPredicate predicateForChoiceQuestionResultWithResultSelector:resultSelector
-                                                                                        expectedAnswerValue:@"good"];
-    NSPredicate *predicateGoodMoodAndFeeling = [NSCompoundPredicate andPredicateWithSubpredicates:@[predicateGoodFeeling, predicateGoodMood]];
-    
-    predicateRule = [[ORKPredicateStepNavigationRule alloc] initWithResultPredicates:@[ predicateGoodMoodAndFeeling ]
-                                                          destinationStepIdentifiers:@[ @"survey_skipped" ] ];
-    
-    [task setNavigationRule:predicateRule forTriggerStepIdentifier:@"introForm"];
-
-    
-    // From the "symptom" step, go to "other_symptom" is user didn't chose headache.
-    // Otherwise, default to going to next step (the regular ORKOrderedTask order applies
-    //  when the defaultStepIdentifier argument is omitted).
-    
-    // User chose headache at the symptom step
-    // Equivalent to:
-    //      [NSPredicate predicateWithFormat:
-    //          @"SUBQUERY(SELF, $x, $x.identifier like 'symptom' \
-    //                     AND SUBQUERY($x.answer, $y, $y like 'headache').@count > 0).@count > 0"];
-    resultSelector = [ORKResultSelector selectorWithResultIdentifier:@"symptom"];
-    NSPredicate *predicateHeadache = [ORKResultPredicate predicateForChoiceQuestionResultWithResultSelector:resultSelector
-                                                                                        expectedAnswerValue:@"headache"];
-    
-    // User didn't chose headache at the symptom step
-    NSPredicate *predicateNotHeadache = [NSCompoundPredicate notPredicateWithSubpredicate:predicateHeadache];
-
-    predicateRule = [[ORKPredicateStepNavigationRule alloc] initWithResultPredicates:@[ predicateNotHeadache ]
-                                                          destinationStepIdentifiers:@[ @"other_symptom" ] ];
-    
-    [task setNavigationRule:predicateRule forTriggerStepIdentifier:@"symptom"];
-
-    
-    // From the "severity" step, go to "severe_headache" or "light_headache" depending on the user answer
-    
-    // User chose YES at the severity step
-    // Equivalent to:
-    //      [NSPredicate predicateWithFormat:
-    //          @"SUBQUERY(SELF, $x, $x.identifier like 'severity' AND $x.answer == YES).@count > 0"];
-    resultSelector = [ORKResultSelector selectorWithResultIdentifier:@"severity"];
-    NSPredicate *predicateSevereYes = [ORKResultPredicate predicateForBooleanQuestionResultWithResultSelector:resultSelector
-                                                                                               expectedAnswer:YES];
-    
-    // User chose NO at the severity step
-    NSPredicate *predicateSevereNo = [ORKResultPredicate predicateForBooleanQuestionResultWithResultSelector:resultSelector
-                                                                                              expectedAnswer:NO];
-
-    NSPredicate *predicateSevereHeadache = [NSCompoundPredicate andPredicateWithSubpredicates:@[predicateHeadache, predicateSevereYes]];
-
-    NSPredicate *predicateLightHeadache = [NSCompoundPredicate andPredicateWithSubpredicates:@[predicateHeadache, predicateSevereNo]];
-    
-    predicateRule =
-    [[ORKPredicateStepNavigationRule alloc] initWithResultPredicates:@[ predicateSevereHeadache,
-                                                                        predicateLightHeadache ]
-                                          destinationStepIdentifiers:@[ @"severe_headache",
-                                                                        @"light_headache" ] ];
-    
-    [task setNavigationRule:predicateRule forTriggerStepIdentifier:@"severity"];
-    
-    
-    // Add end direct rules to skip unneeded steps
-    ORKDirectStepNavigationRule *directRule = nil;
-    
-    directRule = [[ORKDirectStepNavigationRule alloc] initWithDestinationStepIdentifier:@"end"];
-    [task setNavigationRule:directRule forTriggerStepIdentifier:@"severe_headache"];
-    [task setNavigationRule:directRule forTriggerStepIdentifier:@"light_headache"];
-    [task setNavigationRule:directRule forTriggerStepIdentifier:@"other_symptom"];
-    [task setNavigationRule:directRule forTriggerStepIdentifier:@"survey_skipped"];
-
-    directRule = [[ORKDirectStepNavigationRule alloc] initWithDestinationStepIdentifier:ORKNullStepIdentifier];
-    [task setNavigationRule:directRule forTriggerStepIdentifier:@"end"];
-    
-    return task;
-}
-
 #pragma mark - Navigable Loop Task
 
 - (id<ORKTask>)makeNavigableLoopTask {
@@ -3522,6 +3348,7 @@ stepViewControllerWillAppear:(ORKStepViewController *)stepViewController {
         stepViewController.navigationItem.titleView = [[UISegmentedControl alloc] initWithItems:items];
     } else if ([stepViewController.step.identifier isEqualToString:@"waitTask.step2"]) {
         // Indeterminate step
+        [((ORKWaitStepViewController *)stepViewController) performSelector:@selector(updateText:) withObject:@"Updated text" afterDelay:2.0];
         [((ORKWaitStepViewController *)stepViewController) performSelector:@selector(goForward) withObject:nil afterDelay:5.0];
     } else if ([stepViewController.step.identifier isEqualToString:@"waitTask.step4"]) {
         // Determinate step

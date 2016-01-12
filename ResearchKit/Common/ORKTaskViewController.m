@@ -815,6 +815,16 @@ static NSString *const _ChildNavigationControllerRestorationKey = @"childNavigat
     [_currentStepViewController goBackward];
 }
 
+- (UIInterfaceOrientationMask)supportedInterfaceOrientations {
+    UIInterfaceOrientationMask supportedOrientations;
+    if (self.currentStepViewController) {
+        supportedOrientations = self.currentStepViewController.supportedInterfaceOrientations;
+    } else {
+        supportedOrientations = [[self nextStep].stepViewControllerClass supportedInterfaceOrientations];
+    }
+    return supportedOrientations;
+}
+
 #pragma mark - internal helpers
 
 - (void)updateLastBeginningInstructionStepIdentifierForStep:(ORKStep *)step
@@ -910,16 +920,7 @@ static NSString *const _ChildNavigationControllerRestorationKey = @"childNavigat
     ORKAdjustPageViewControllerNavigationDirectionForRTL(&direction);
     
     ORKStepViewControllerNavigationDirection stepDirection = goForward?ORKStepViewControllerNavigationDirectionForward : ORKStepViewControllerNavigationDirectionReverse;
-    
-    NSString *progressLabel = nil;
-    if ([self shouldDisplayProgressLabel]) {
-        ORKTaskProgress progress = [_task progressOfCurrentStep:viewController.step withResult:[self result]];
-        
-        if (progress.total > 0) {
-            progressLabel = [NSString stringWithFormat:ORKLocalizedString(@"STEP_PROGRESS_FORMAT", nil) ,ORKLocalizedStringFromNumber(@(progress.current + 1)), ORKLocalizedStringFromNumber(@(progress.total))];
-        }
-    }
-    
+
     [viewController willNavigateDirection:stepDirection];
     
     ORK_Log_Debug(@"%@ %@", self, viewController);
@@ -933,6 +934,15 @@ static NSString *const _ChildNavigationControllerRestorationKey = @"childNavigat
     // Update currentStepViewController now, so we don't accept additional transition requests
     // from the same VC.
     _currentStepViewController = viewController;
+    
+    NSString *progressLabel = nil;
+    if ([self shouldDisplayProgressLabel]) {
+        ORKTaskProgress progress = [_task progressOfCurrentStep:viewController.step withResult:[self result]];
+        
+        if (progress.total > 0) {
+            progressLabel = [NSString stringWithFormat:ORKLocalizedString(@"STEP_PROGRESS_FORMAT", nil) ,ORKLocalizedStringFromNumber(@(progress.current + 1)), ORKLocalizedStringFromNumber(@(progress.total))];
+        }
+    }
     
     [self.pageViewController setViewControllers:@[viewController] direction:direction animated:animated completion:^(BOOL finished) {
         __strong typeof(weakSelf) strongSelf = weakSelf;
@@ -1052,7 +1062,7 @@ static NSString *const _ChildNavigationControllerRestorationKey = @"childNavigat
 }
 
 - (BOOL)shouldDisplayProgressLabel {
-    return self.showsProgressInNavigationBar && [_task respondsToSelector:@selector(progressOfCurrentStep:withResult:)];
+    return self.showsProgressInNavigationBar && [_task respondsToSelector:@selector(progressOfCurrentStep:withResult:)] && self.currentStepViewController.step.showsProgress;
 }
 
 #pragma mark - internal action Handlers
